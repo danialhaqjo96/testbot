@@ -30,18 +30,20 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class MyBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage()){
+        if (update.hasMessage()) {
             long chatId = update.getMessage().getChatId();
-            if (update.getMessage().hasText()){
-                switch (update.getMessage().getText()){
+            if (update.getMessage().hasText()) {
+                switch (update.getMessage().getText()) {
                     case "/start":
                         start(chatId);
                 }
-            } if (update.getMessage().hasAudio()){
+            }
+            if (update.getMessage().hasAudio()) {
                 String fileId = update.getMessage().getAudio().getFileId();
                 download(fileId, chatId);
             }
@@ -64,11 +66,10 @@ public class MyBot extends TelegramLongPollingBot {
     }
 
     private void downloadAudio(String filePath, long chatId) throws IOException, TelegramApiException {
-        URL url = new URL("https://api.telegram.org/file/bot8594272810:AAGv0YMdCIkGJ3QfzoOSNFg0PZFPXr_RAek/"+filePath);
+        URL url = new URL("https://api.telegram.org/file/bot8594272810:AAGv0YMdCIkGJ3QfzoOSNFg0PZFPXr_RAek/" + filePath);
         HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
         InputStream in = urlConnection.getInputStream();
         new java.io.File("downloads").mkdirs();
-        OutputStream out = new FileOutputStream("downloads/"+chatId+".mp3");
 
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
@@ -76,22 +77,16 @@ public class MyBot extends TelegramLongPollingBot {
         Message msg = execute(sendMessage);
         int messageId = msg.getMessageId();
 
-        byte[] buffer = new byte[1024];
-        int read;
-        int fileSize = urlConnection.getContentLength();
-        int totalRead = 0;
-        int perProgress = 0;
-        while ((read = in.read(buffer)) != -1) {
-            out.write(buffer, 0, read);
-            totalRead += read;
-            int progress = (totalRead * 100) / fileSize;
-            if (progress != perProgress){
-                updateProgress(messageId, chatId, ("در حال آپلود فایل " + progress + "%"));
-                perProgress = progress;
-            }
+        Map result = CloudinaryConfig.cloudinary.uploader().upload(
+                in,
+                Map.of(
+                        "resource_type", "video"
+                )
+        );
 
-        }
-        System.out.println("Downloaded");
+        String audioUrl = result.get("secure_url").toString();
+
+        System.out.println("Downloaded _ " + audioUrl);
         sendMusicInfo(chatId);
     }
 
@@ -105,7 +100,7 @@ public class MyBot extends TelegramLongPollingBot {
             photoPath = getCover(chatId, tag);
             info = getMusicInfo(tag);
             infoStr = info.toString();
-            if (photoPath.isEmpty()){
+            if (photoPath.isEmpty()) {
                 return;
             }
         } catch (Exception e) {
@@ -127,7 +122,7 @@ public class MyBot extends TelegramLongPollingBot {
     }
 
     private MusicInfoModel getMusicInfo(Tag tag) {
-        return  new MusicInfoModel(
+        return new MusicInfoModel(
                 tag.getFirst(FieldKey.TITLE),
                 tag.getFirst(FieldKey.ARTIST),
                 tag.getFirst(FieldKey.ALBUM),
@@ -149,9 +144,9 @@ public class MyBot extends TelegramLongPollingBot {
 
     private String getCover(long chatId, Tag tag) {
         String thumnailPath = "thumnails/" + chatId + ".jpg";
-        if (tag != null){
+        if (tag != null) {
             Artwork artwork = tag.getFirstArtwork();
-            if (artwork != null){
+            if (artwork != null) {
                 try (OutputStream os = new FileOutputStream(thumnailPath)) {
                     byte[] img = artwork.getBinaryData();
                     os.write(img);
