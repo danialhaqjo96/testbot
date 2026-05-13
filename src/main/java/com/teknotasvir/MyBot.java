@@ -29,10 +29,12 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class MyBot extends TelegramLongPollingBot {
+    Map<Long, String> musics = new HashMap<Long, String>();
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage()) {
@@ -69,8 +71,16 @@ public class MyBot extends TelegramLongPollingBot {
         URL url = new URL("https://api.telegram.org/file/bot8594272810:AAGv0YMdCIkGJ3QfzoOSNFg0PZFPXr_RAek/" + filePath);
         HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
         InputStream in = urlConnection.getInputStream();
-        new java.io.File("downloads").mkdirs();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
+        byte[] buffer = new byte[8192];
+        int read;
+
+        while ((read = in.read(buffer)) != -1) {
+            baos.write(buffer, 0, read);
+        }
+
+        byte[] audioBytes = baos.toByteArray();
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
         sendMessage.setText("در حال آپلود فایل " + 0 + "%");
@@ -78,7 +88,7 @@ public class MyBot extends TelegramLongPollingBot {
         int messageId = msg.getMessageId();
 
         Map result = CloudinaryConfig.cloudinary.uploader().upload(
-                in,
+                audioBytes,
                 Map.of(
                         "resource_type", "video"
                 )
@@ -86,8 +96,10 @@ public class MyBot extends TelegramLongPollingBot {
 
         String audioUrl = result.get("secure_url").toString();
 
+        musics.put(chatId, audioUrl);
+
         System.out.println("Downloaded _ " + audioUrl);
-        sendMusicInfo(chatId);
+//        sendMusicInfo(chatId);
     }
 
     private void sendMusicInfo(long chatId) {
