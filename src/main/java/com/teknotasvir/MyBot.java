@@ -86,19 +86,24 @@ public class MyBot extends TelegramLongPollingBot {
         sendMessage.setText("در حال آپلود فایل " + 0 + "%");
         Message msg = execute(sendMessage);
         int messageId = msg.getMessageId();
+        try {
+            System.out.println("Uploading to cloudinary...");
 
-        Map result = CloudinaryConfig.cloudinary.uploader().upload(
-                audioBytes,
-                Map.of(
-                        "resource_type", "video"
-                )
-        );
+            Map result = CloudinaryConfig.cloudinary.uploader().upload(
+                    audioBytes,
+                    Map.of(
+                            "resource_type", "video"
+                    )
+            );
 
-        String audioUrl = result.get("secure_url").toString();
+            String audioUrl = result.get("secure_url").toString();
 
-        musics.put(chatId, audioUrl);
+            musics.put(chatId, audioUrl);
 
-        System.out.println("Downloaded _ " + audioUrl);
+            System.out.println("Downloaded _ " + audioUrl);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
 //        sendMusicInfo(chatId);
     }
 
