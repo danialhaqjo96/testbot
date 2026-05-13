@@ -14,6 +14,18 @@
             <artifactId>telegrambots</artifactId>
             <version>6.9.7.1</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.telegram</groupId>
+            <artifactId>telegrambots-meta</artifactId>
+            <version>6.9.7.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.telegram</groupId>
+            <artifactId>telegrambots-abilities</artifactId>
+            <version>6.9.7.1</version>
+        </dependency>
         <dependency>
             <groupId>net.jthink</groupId>
             <artifactId>jaudiotagger</artifactId>
