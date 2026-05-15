@@ -1,5 +1,6 @@
 package com.teknotasvir;
 
+import com.cloudinary.Url;
 import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
 import org.jaudiotagger.audio.exceptions.CannotReadException;
@@ -28,6 +29,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -61,14 +63,37 @@ public class MyBot extends TelegramLongPollingBot {
             String filePath = file.getFilePath();
             downloadAudio(filePath, chatId);
         } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 
     private void downloadAudio(String filePath, long chatId) throws IOException, TelegramApiException {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText("در حال آپلود فایل "/* + 0 + "%"*/);
+        execute(sendMessage);
         URL url = new URL("https://api.telegram.org/file/bot8594272810:AAGv0YMdCIkGJ3QfzoOSNFg0PZFPXr_RAek/" + filePath);
+        byte[] audioBytes = getAudioBytes(url);
+        try {
+            System.out.println("Uploading to cloudinary...");
+            Map result = CloudinaryConfig.cloudinary.uploader().upload(
+                    audioBytes,
+                    Map.of(
+                            "resource_type", "video"
+                    )
+            );
+            String audioUrl = result.get("secure_url").toString();
+            musics.put(chatId, audioUrl);
+            System.out.println("Downloaded _ " + audioUrl);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        sendMusicInfo(chatId);
+    }
+
+    private byte[] getAudioBytes(URL url) throws IOException {
         HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
         InputStream in = urlConnection.getInputStream();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -80,31 +105,7 @@ public class MyBot extends TelegramLongPollingBot {
             baos.write(buffer, 0, read);
         }
 
-        byte[] audioBytes = baos.toByteArray();
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
-        sendMessage.setText("در حال آپلود فایل " + 0 + "%");
-        Message msg = execute(sendMessage);
-        int messageId = msg.getMessageId();
-        try {
-            System.out.println("Uploading to cloudinary...");
-
-            Map result = CloudinaryConfig.cloudinary.uploader().upload(
-                    audioBytes,
-                    Map.of(
-                            "resource_type", "video"
-                    )
-            );
-
-            String audioUrl = result.get("secure_url").toString();
-
-            musics.put(chatId, audioUrl);
-
-            System.out.println("Downloaded _ " + audioUrl);
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-//        sendMusicInfo(chatId);
+        return baos.toByteArray();
     }
 
     private void sendMusicInfo(long chatId) {
@@ -112,7 +113,9 @@ public class MyBot extends TelegramLongPollingBot {
         MusicInfoModel info = null;
         String infoStr = "";
         try {
-            AudioFile audioFile = AudioFileIO.read(new java.io.File("downloads/" + chatId + ".mp3"));
+            java.io.File file = java.io.File.createTempFile(String.valueOf(chatId), ".mp3");
+            Files.write(file.toPath(), getAudioBytes(new URL(musics.get(chatId))));
+            AudioFile audioFile = AudioFileIO.read(file);
             Tag tag = audioFile.getTag();
             photoPath = getCover(chatId, tag);
             info = getMusicInfo(tag);
@@ -121,6 +124,7 @@ public class MyBot extends TelegramLongPollingBot {
                 return;
             }
         } catch (Exception e) {
+            System.out.println(e.getMessage());
             photoPath = "thumnails/blank.png";
         }
         SendPhoto sendPhoto = new SendPhoto();
